@@ -1,6 +1,6 @@
 import { Agent } from "undici";
 import type { MikrotikConnection } from "./mikrotik-settings";
-import { formatAllowedAddresses, parseAddressList, stripCidr } from "./ip";
+import { formatAllowedAddresses, parseAddressList, stripCidr, toAllowedAddress, isUsableWireGuardAddress } from "./ip";
 
 export class MikrotikError extends Error {
   constructor(
@@ -292,4 +292,139 @@ export async function listWireguardPeers(
       (peer) =>
         !peer.interface || peer.interface === config.wgInterface,
     );
+}
+
+interface MikrotikWireguardInterface {
+  ".id": string;
+  name?: string;
+  "public-key"?: string;
+  "listen-port"?: string | number;
+}
+
+interface MikrotikIpAddress {
+  address?: string;
+  network?: string;
+  interface?: string;
+}
+
+export interface WireGuardServerFetchResult {
+  publicKey: string;
+  listenPort: number;
+  endpoint: string;
+  serverAddress: string;
+  clientIpPool: string;
+}
+
+function poolFromAddressEntry(entry: MikrotikIpAddress): string | null {
+  const address = entry.address?.trim();
+  if (!address || !address.includes("/")) {
+    return null;
+  }
+
+  if (!isUsableWireGuardAddress(address)) {
+    return null;
+  }
+
+  const slashIndex = address.lastIndexOf("/");
+  const prefix = address.slice(slashIndex + 1);
+  const network = entry.network?.trim();
+  if (network && isUsableWireGuardAddress(`${network}/${prefix}`)) {
+    return `${network}/${prefix}`;
+  }
+
+  return isUsableWireGuardAddress(address) ? address : null;
+}
+
+function serverAddressFromEntry(entry: MikrotikIpAddress): string | null {
+  const address = entry.address?.trim();
+  if (!address || !isUsableWireGuardAddress(address)) {
+    return null;
+  }
+
+  const host = stripCidr(address);
+  if (!host) {
+    return null;
+  }
+
+  return toAllowedAddress(host);
+}
+
+export async function fetchWireGuardServerInfo(
+  config: MikrotikConnection,
+  endpointHost?: string,
+): Promise<WireGuardServerFetchResult> {
+  const wgQuery = new URLSearchParams({ name: config.wgInterface });
+  const wgResponse = await mikrotikFetch(
+    config,
+    `/interface/wireguard?${wgQuery.toString()}`,
+  );
+
+  if (!wgResponse.ok) {
+    const body = await wgResponse.text();
+    throw new MikrotikError(
+      `Failed to read WireGuard interface (${wgResponse.status})`,
+      wgResponse.status,
+      body,
+    );
+  }
+
+  const wgRows = (await wgResponse.json()) as MikrotikWireguardInterface[];
+  const wg = wgRows.find((row) => row.name === config.wgInterface) ?? wgRows[0];
+  const publicKey = wg?.["public-key"]?.trim();
+  const listenPort = Number(wg?.["listen-port"] ?? 51820);
+
+  if (!publicKey) {
+    throw new MikrotikError(
+      `WireGuard interface "${config.wgInterface}" has no public key`,
+      404,
+    );
+  }
+
+  const addrQuery = new URLSearchParams({ interface: config.wgInterface });
+  const addrResponse = await mikrotikFetch(
+    config,
+    `/ip/address?${addrQuery.toString()}`,
+  );
+
+  if (!addrResponse.ok) {
+    const body = await addrResponse.text();
+    throw new MikrotikError(
+      `Failed to read interface addresses (${addrResponse.status})`,
+      addrResponse.status,
+      body,
+    );
+  }
+
+  const addrRows = (await addrResponse.json()) as MikrotikIpAddress[];
+  const serverAddresses = addrRows
+    .map(serverAddressFromEntry)
+    .filter((value): value is string => Boolean(value));
+  const clientPools = addrRows
+    .map(poolFromAddressEntry)
+    .filter((value): value is string => Boolean(value));
+
+  if (serverAddresses.length === 0) {
+    throw new MikrotikError(
+      `No usable /ip/address entries found for interface "${config.wgInterface}" (link-local addresses are ignored)`,
+      404,
+    );
+  }
+
+  if (clientPools.length === 0) {
+    throw new MikrotikError(
+      `No usable client IP pools found on interface "${config.wgInterface}" (link-local IPv6 fe80::/10 and similar are ignored)`,
+      404,
+    );
+  }
+
+  const host = endpointHost?.trim() || config.host;
+  const endpoint = `${host}:${Number.isNaN(listenPort) ? 51820 : listenPort}`;
+
+  return {
+    publicKey,
+    listenPort: Number.isNaN(listenPort) ? 51820 : listenPort,
+    endpoint,
+    serverAddress: [...new Set(serverAddresses)].join(","),
+    clientIpPool: [...new Set(clientPools)].join(","),
+  };
 }

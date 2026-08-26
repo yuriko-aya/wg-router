@@ -92,5 +92,9 @@ model MikrotikSettings {
   useHttps          Boolean  @default(true)
   tlsVerify         Boolean  @default(false)
   wgInterface       String   @default("")
+  wgServerPublicKey String   @default("")
+  wgServerEndpoint  String   @default("")
+  wgServerAddress   String   @default("")
+  wgClientIpPool    String   @default("")
   updatedAt         DateTime @updatedAt
 }

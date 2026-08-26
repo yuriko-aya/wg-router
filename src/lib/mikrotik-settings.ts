@@ -1,7 +1,15 @@
+import { getClientIpPools } from "./ip";
 import { encryptPrivateKey, decryptPrivateKey } from "./crypto";
 import { prisma } from "./prisma";
 
 export const MIKROTIK_SETTINGS_ID = "default";
+
+export interface WireGuardServerSettings {
+  publicKey: string;
+  endpoint: string;
+  serverAddress: string;
+  clientIpPool: string;
+}
 
 export interface MikrotikSettingsView {
   host: string;
@@ -10,8 +18,13 @@ export interface MikrotikSettingsView {
   useHttps: boolean;
   tlsVerify: boolean;
   wgInterface: string;
+  wgServerPublicKey: string;
+  wgServerEndpoint: string;
+  wgServerAddress: string;
+  wgClientIpPool: string;
   hasPassword: boolean;
   configured: boolean;
+  wireGuardConfigured: boolean;
 }
 
 export interface MikrotikConnection {
@@ -32,9 +45,27 @@ export interface SaveMikrotikSettingsInput {
   useHttps: boolean;
   tlsVerify: boolean;
   wgInterface: string;
+  wgServerPublicKey?: string;
+  wgServerEndpoint?: string;
+  wgServerAddress?: string;
+  wgClientIpPool?: string;
 }
 
-function isConfigured(record: {
+type MikrotikSettingsRecord = {
+  host: string;
+  port: number;
+  username: string;
+  passwordEncrypted: string;
+  useHttps: boolean;
+  tlsVerify: boolean;
+  wgInterface: string;
+  wgServerPublicKey: string;
+  wgServerEndpoint: string;
+  wgServerAddress: string;
+  wgClientIpPool: string;
+};
+
+function isConnectionConfigured(record: {
   host: string;
   username: string;
   passwordEncrypted: string;
@@ -48,15 +79,56 @@ function isConfigured(record: {
   );
 }
 
-function toView(record: {
-  host: string;
-  port: number;
-  username: string;
-  passwordEncrypted: string;
-  useHttps: boolean;
-  tlsVerify: boolean;
-  wgInterface: string;
-}): MikrotikSettingsView {
+export function isWireGuardConfigured(record: {
+  wgServerPublicKey: string;
+  wgServerEndpoint: string;
+  wgServerAddress: string;
+  wgClientIpPool: string;
+}): boolean {
+  return Boolean(
+    record.wgServerPublicKey.trim() &&
+      record.wgServerEndpoint.trim() &&
+      record.wgServerAddress.trim() &&
+      record.wgClientIpPool.trim(),
+  );
+}
+
+function validateWireGuardSettings(input: {
+  wgServerPublicKey: string;
+  wgServerEndpoint: string;
+  wgServerAddress: string;
+  wgClientIpPool: string;
+}) {
+  const publicKey = input.wgServerPublicKey.trim();
+  const endpoint = input.wgServerEndpoint.trim();
+  const serverAddress = input.wgServerAddress.trim();
+  const clientIpPool = input.wgClientIpPool.trim();
+
+  const anySet = Boolean(publicKey || endpoint || serverAddress || clientIpPool);
+  const allSet = Boolean(publicKey && endpoint && serverAddress && clientIpPool);
+
+  if (anySet && !allSet) {
+    throw new Error(
+      "WireGuard server settings require public key, endpoint, server address, and client IP pool",
+    );
+  }
+
+  if (allSet) {
+    getClientIpPools(clientIpPool);
+  }
+
+  return {
+    wgServerPublicKey: publicKey,
+    wgServerEndpoint: endpoint,
+    wgServerAddress: serverAddress,
+    wgClientIpPool: clientIpPool,
+  };
+}
+
+function toView(record: MikrotikSettingsRecord): MikrotikSettingsView {
+  const connectionConfigured = isConnectionConfigured(record);
+  const wireGuardConfigured = isWireGuardConfigured(record);
+
   return {
     host: record.host,
     port: record.port,
@@ -64,78 +136,95 @@ function toView(record: {
     useHttps: record.useHttps,
     tlsVerify: record.tlsVerify,
     wgInterface: record.wgInterface,
+    wgServerPublicKey: record.wgServerPublicKey,
+    wgServerEndpoint: record.wgServerEndpoint,
+    wgServerAddress: record.wgServerAddress,
+    wgClientIpPool: record.wgClientIpPool,
     hasPassword: Boolean(record.passwordEncrypted),
-    configured: isConfigured(record),
+    configured: connectionConfigured && wireGuardConfigured,
+    wireGuardConfigured,
   };
 }
 
 async function bootstrapFromEnvIfEmpty() {
-  const existing = await prisma.mikrotikSettings.findUnique({
+  let existing = await prisma.mikrotikSettings.findUnique({
     where: { id: MIKROTIK_SETTINGS_ID },
   });
 
-  if (!existing || isConfigured(existing)) {
-    return existing;
+  if (!existing) {
+    existing = await prisma.mikrotikSettings.create({
+      data: { id: MIKROTIK_SETTINGS_ID },
+    });
   }
 
-  const host = process.env.MIKROTIK_HOST?.trim();
-  const username = process.env.MIKROTIK_USER?.trim();
-  const password = process.env.MIKROTIK_PASSWORD;
-  const wgInterface = process.env.MIKROTIK_WG_INTERFACE?.trim();
+  if (!isConnectionConfigured(existing)) {
+    const host = process.env.MIKROTIK_HOST?.trim();
+    const username = process.env.MIKROTIK_USER?.trim();
+    const password = process.env.MIKROTIK_PASSWORD;
+    const wgInterface = process.env.MIKROTIK_WG_INTERFACE?.trim();
 
-  if (!host || !username || !password || !wgInterface) {
-    return existing;
+    if (host && username && password && wgInterface) {
+      const useHttps = process.env.MIKROTIK_USE_HTTPS !== "false";
+      const tlsVerify = process.env.MIKROTIK_TLS_VERIFY === "true";
+      const port = Number(process.env.MIKROTIK_PORT ?? 443);
+
+      existing = await prisma.mikrotikSettings.update({
+        where: { id: MIKROTIK_SETTINGS_ID },
+        data: {
+          host,
+          port: Number.isNaN(port) ? 443 : port,
+          username,
+          passwordEncrypted: encryptPrivateKey(password),
+          useHttps,
+          tlsVerify,
+          wgInterface,
+        },
+      });
+    }
   }
 
-  const useHttps = process.env.MIKROTIK_USE_HTTPS !== "false";
-  const tlsVerify = process.env.MIKROTIK_TLS_VERIFY === "true";
-  const port = Number(process.env.MIKROTIK_PORT ?? 443);
+  if (!isWireGuardConfigured(existing)) {
+    const publicKey = process.env.WG_SERVER_PUBLIC_KEY?.trim();
+    const endpoint = process.env.WG_SERVER_ENDPOINT?.trim();
+    const serverAddress = process.env.WG_SERVER_ADDRESS?.trim();
+    const clientIpPool = process.env.WG_CLIENT_IP_POOL?.trim();
 
-  return prisma.mikrotikSettings.upsert({
-    where: { id: MIKROTIK_SETTINGS_ID },
-    create: {
-      id: MIKROTIK_SETTINGS_ID,
-      host,
-      port: Number.isNaN(port) ? 443 : port,
-      username,
-      passwordEncrypted: encryptPrivateKey(password),
-      useHttps,
-      tlsVerify,
-      wgInterface,
-    },
-    update: {
-      host,
-      port: Number.isNaN(port) ? 443 : port,
-      username,
-      passwordEncrypted: encryptPrivateKey(password),
-      useHttps,
-      tlsVerify,
-      wgInterface,
-    },
-  });
+    if (publicKey && endpoint && serverAddress && clientIpPool) {
+      existing = await prisma.mikrotikSettings.update({
+        where: { id: MIKROTIK_SETTINGS_ID },
+        data: {
+          wgServerPublicKey: publicKey,
+          wgServerEndpoint: endpoint,
+          wgServerAddress: serverAddress,
+          wgClientIpPool: clientIpPool,
+        },
+      });
+    }
+  }
+
+  return existing;
 }
 
 export async function getMikrotikSettingsView(): Promise<MikrotikSettingsView> {
-  const record =
-    (await bootstrapFromEnvIfEmpty()) ??
-    (await prisma.mikrotikSettings.findUnique({
-      where: { id: MIKROTIK_SETTINGS_ID },
-    }));
+  const record = await bootstrapFromEnvIfEmpty();
+  return toView(record);
+}
 
-  if (!record) {
-    return {
-      host: "",
-      port: 443,
-      username: "",
-      useHttps: true,
-      tlsVerify: false,
-      wgInterface: "",
-      hasPassword: false,
-      configured: false,
-    };
+export async function getWireGuardSettings(): Promise<WireGuardServerSettings> {
+  const record = await bootstrapFromEnvIfEmpty();
+
+  if (!isWireGuardConfigured(record)) {
+    throw new Error(
+      "WireGuard server settings are not configured. Set them in Admin → MikroTik connection.",
+    );
   }
 
-  return toView(record);
+  return {
+    publicKey: record.wgServerPublicKey.trim(),
+    endpoint: record.wgServerEndpoint.trim(),
+    serverAddress: record.wgServerAddress.trim(),
+    clientIpPool: record.wgClientIpPool.trim(),
+  };
 }
 
 export async function saveMikrotikSettings(
@@ -163,6 +252,13 @@ export async function saveMikrotikSettings(
     throw new Error("Password is required");
   }
 
+  const wireGuard = validateWireGuardSettings({
+    wgServerPublicKey: input.wgServerPublicKey ?? existing?.wgServerPublicKey ?? "",
+    wgServerEndpoint: input.wgServerEndpoint ?? existing?.wgServerEndpoint ?? "",
+    wgServerAddress: input.wgServerAddress ?? existing?.wgServerAddress ?? "",
+    wgClientIpPool: input.wgClientIpPool ?? existing?.wgClientIpPool ?? "",
+  });
+
   const record = await prisma.mikrotikSettings.upsert({
     where: { id: MIKROTIK_SETTINGS_ID },
     create: {
@@ -174,6 +270,7 @@ export async function saveMikrotikSettings(
       useHttps: input.useHttps,
       tlsVerify: input.tlsVerify,
       wgInterface,
+      ...wireGuard,
     },
     update: {
       host,
@@ -183,6 +280,7 @@ export async function saveMikrotikSettings(
       useHttps: input.useHttps,
       tlsVerify: input.tlsVerify,
       wgInterface,
+      ...wireGuard,
     },
   });
 
@@ -194,15 +292,15 @@ export async function resolveMikrotikConnection(
 ): Promise<MikrotikConnection> {
   const saved = await bootstrapFromEnvIfEmpty();
 
-  const host = input?.host?.trim() || saved?.host.trim() || "";
-  const port = input?.port ?? saved?.port ?? 443;
-  const username = input?.username?.trim() || saved?.username.trim() || "";
-  const wgInterface = input?.wgInterface?.trim() || saved?.wgInterface.trim() || "";
-  const useHttps = input?.useHttps ?? saved?.useHttps ?? true;
-  const tlsVerify = input?.tlsVerify ?? saved?.tlsVerify ?? false;
+  const host = input?.host?.trim() || saved.host.trim() || "";
+  const port = input?.port ?? saved.port ?? 443;
+  const username = input?.username?.trim() || saved.username.trim() || "";
+  const wgInterface = input?.wgInterface?.trim() || saved.wgInterface.trim() || "";
+  const useHttps = input?.useHttps ?? saved.useHttps ?? true;
+  const tlsVerify = input?.tlsVerify ?? saved.tlsVerify ?? false;
 
   let password = input?.password ?? "";
-  if (!password && saved?.passwordEncrypted) {
+  if (!password && saved.passwordEncrypted) {
     password = decryptPrivateKey(saved.passwordEncrypted);
   }
 

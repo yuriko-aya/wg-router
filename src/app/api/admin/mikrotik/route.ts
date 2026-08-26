@@ -30,6 +30,10 @@ export async function PUT(request: Request) {
     useHttps?: boolean;
     tlsVerify?: boolean;
     wgInterface?: string;
+    wgServerPublicKey?: string;
+    wgServerEndpoint?: string;
+    wgServerAddress?: string;
+    wgClientIpPool?: string;
   };
 
   try {
@@ -47,6 +51,10 @@ export async function PUT(request: Request) {
       useHttps: body.useHttps ?? true,
       tlsVerify: body.tlsVerify ?? false,
       wgInterface: body.wgInterface ?? "",
+      wgServerPublicKey: body.wgServerPublicKey,
+      wgServerEndpoint: body.wgServerEndpoint,
+      wgServerAddress: body.wgServerAddress,
+      wgClientIpPool: body.wgClientIpPool,
     });
     return NextResponse.json({ settings });
   } catch (error) {

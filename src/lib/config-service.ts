@@ -2,7 +2,7 @@ import { prisma } from "./prisma";
 import { encryptPrivateKey, decryptPrivateKey } from "./crypto";
 import { generateKeyPair, buildClientConfig } from "./wireguard";
 import { createWireguardPeer, deleteWireguardPeer } from "./mikrotik";
-import { getMikrotikConnection } from "./mikrotik-settings";
+import { getMikrotikConnection, getWireGuardSettings } from "./mikrotik-settings";
 import { allocateClientIp } from "./ip-pool";
 import { getEnv } from "./env";
 import { Role } from "@prisma/client";
@@ -65,6 +65,7 @@ export async function createUserConfig(userId: string, name: string) {
   }
 
   const mikrotik = await getMikrotikConnection();
+  const wireGuard = await getWireGuardSettings();
   const keys = generateKeyPair();
   const allowedAddress = await allocateClientIp();
   const comment = `${user.email}|${trimmedName}`.slice(0, 64);
@@ -88,11 +89,14 @@ export async function createUserConfig(userId: string, name: string) {
     });
 
     const privateKey = keys.privateKey;
-    const confText = buildClientConfig({
-      name: trimmedName,
-      privateKey,
-      allowedAddress,
-    });
+    const confText = buildClientConfig(
+      {
+        name: trimmedName,
+        privateKey,
+        allowedAddress,
+      },
+      wireGuard,
+    );
 
     return {
       config: toConfigView(config),
@@ -137,11 +141,15 @@ export async function getConfigDownload(userId: string, configId: string) {
   }
 
   const privateKey = decryptPrivateKey(config.privateKeyEncrypted);
-  const confText = buildClientConfig({
-    name: config.name,
-    privateKey,
-    allowedAddress: config.allowedAddress,
-  });
+  const wireGuard = await getWireGuardSettings();
+  const confText = buildClientConfig(
+    {
+      name: config.name,
+      privateKey,
+      allowedAddress: config.allowedAddress,
+    },
+    wireGuard,
+  );
 
   return { confText, name: config.name };
 }

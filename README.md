@@ -33,7 +33,7 @@ sudo -u postgres createdb wgrouter --owner=wgrouter
 
 Create a dedicated API user on the router with permissions for WireGuard peers only (recommended), or a limited group.
 
-After starting the app, open **Admin → MikroTik connection** to enter the router host, credentials, and WireGuard interface name, then click **Test connection**.
+After starting the app, open **Admin → MikroTik connection** to enter the router host, credentials, WireGuard interface name, and server settings. Use **Fetch from router** to load the public key, listen port, tunnel address, and client IP pool from RouterOS, then **Save settings**.
 
 ### 3. Authentication
 
@@ -65,27 +65,27 @@ Important variables:
 
 | Variable | Description |
 |----------|-------------|
-| `WG_SERVER_PUBLIC_KEY` | Server public key in client configs |
-| `WG_SERVER_ENDPOINT` | Public endpoint `host:51820` for clients |
-| `WG_SERVER_ADDRESS` | Tunnel gateway IP(s), IPv4 and/or IPv6 (e.g. `10.8.0.1/32,fd00:8::1/128`) |
-| `WG_CLIENT_IP_POOL` | IPv4/IPv6 CIDR and/or comma-separated client addresses |
-| `ADMIN_EMAILS` | Comma-separated Google emails with admin role |
+| `ADMIN_EMAILS` | Comma-separated emails with admin role |
+| `AUTH_SECRET` | Session signing secret |
+| `ENCRYPTION_KEY` | Encrypts stored WireGuard private keys |
+| `DATABASE_URL` | PostgreSQL connection string |
 
-MikroTik REST connection (host, credentials, WireGuard interface) is configured in the **Admin** page after login.
+WireGuard server settings (public key, endpoint, tunnel address, client IP pool) are configured in **Admin → MikroTik connection**. Optional `WG_*` env vars can bootstrap the first run on existing deployments.
 
-Example IP pool:
+Example client IP pool (set in admin UI):
 
-```env
+```
 # IPv4 only
-WG_CLIENT_IP_POOL=10.8.0.0/24
+10.8.0.0/24
 
 # Dual-stack (each client gets one IPv4 + one IPv6)
-WG_CLIENT_IP_POOL=10.8.0.0/24,fd00:8::/64
-WG_SERVER_ADDRESS=10.8.0.1/32,fd00:8::1/128
+10.8.0.0/24,fd00:8::/64
 
-# Explicit addresses
-# WG_CLIENT_IP_POOL=10.8.0.2,fd00:8::2,fd00:8::3
+# Server address for client DNS (from /ip/address on the WG interface)
+10.8.0.1/32,fd00:8::1/128
 ```
+
+MikroTik REST connection (host, credentials, WireGuard interface) is also on that admin page.
 
 Generate secrets:
 
@@ -195,9 +195,8 @@ docker exec wg-router npx prisma migrate deploy
 Each generated config includes:
 
 - Client private key (shown once at creation; stored encrypted in DB)
-- Assigned client address(es) from `WG_CLIENT_IP_POOL` (IPv4 `/32`, IPv6 `/128`, or both)
-- Server public key from `WG_SERVER_PUBLIC_KEY`
-- Endpoint from `WG_SERVER_ENDPOINT`
+- Assigned client address(es) from the configured client IP pool (IPv4 `/32`, IPv6 `/128`, or both)
+- Server public key and endpoint from MikroTik WireGuard settings in the admin UI
 
 ## Security notes
 

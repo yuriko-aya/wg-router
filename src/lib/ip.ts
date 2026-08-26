@@ -333,3 +333,44 @@ export function isUnspecifiedAddress(address: string): boolean {
   const host = stripCidr(address);
   return host === "0.0.0.0" || normalizeIpKey(host) === "::";
 }
+
+/** IPv6 link-local fe80::/10 — common on RouterOS interfaces, not for WG clients. */
+export function isIpv6LinkLocal(address: string): boolean {
+  const host = stripCidrSingle(address).split("%")[0] ?? "";
+  if (!isIPv6(host)) {
+    return false;
+  }
+
+  const groups = expandIpv6Address(host);
+  const first = parseInt(groups[0]!, 16);
+  return (first & 0xffc0) === 0xfe80;
+}
+
+/** IPv4 link-local 169.254.0.0/16 */
+export function isIpv4LinkLocal(address: string): boolean {
+  const host = stripCidrSingle(address);
+  if (!isIPv4(host)) {
+    return false;
+  }
+
+  const octets = host.split(".").map(Number);
+  return octets[0] === 169 && octets[1] === 254;
+}
+
+export function isLinkLocalAddress(address: string): boolean {
+  return isIpv6LinkLocal(address) || isIpv4LinkLocal(address);
+}
+
+/** Addresses suitable for WG tunnel server/pool (excludes link-local and unspecified). */
+export function isUsableWireGuardAddress(address: string): boolean {
+  const host = stripCidrSingle(address);
+  if (!host || isUnspecifiedAddress(host)) {
+    return false;
+  }
+
+  if (host === "::1" || host === "127.0.0.1") {
+    return false;
+  }
+
+  return !isLinkLocalAddress(host);
+}

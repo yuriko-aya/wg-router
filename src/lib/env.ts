@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { getClientIpPool, getClientIpPools } from "./ip";
 
 function emptyToUndefined(value: unknown): string | undefined {
   if (typeof value !== "string") {
@@ -21,10 +20,6 @@ const envSchema = z
     DATABASE_URL: z.string().min(1),
     ENCRYPTION_KEY: z.string().min(16),
     ADMIN_EMAILS: z.string().default(""),
-    WG_SERVER_PUBLIC_KEY: z.string().min(1),
-    WG_SERVER_ENDPOINT: z.string().min(1),
-    WG_SERVER_ADDRESS: z.string().min(1),
-    WG_CLIENT_IP_POOL: z.string().min(1),
     MAX_CONFIGS_PER_USER: z.coerce.number().int().positive().default(3),
   })
   .refine(
@@ -68,10 +63,6 @@ export function getAdminEmails(): Set<string> {
 export function isGoogleAuthConfigured(): boolean {
   const env = getEnv();
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
-}
-
-export function getConfiguredClientIpPools() {
-  return getClientIpPools(getEnv().WG_CLIENT_IP_POOL);
 }
 
 export { getClientIpPool, getClientIpPools, stripCidr, toAllowedAddress } from "./ip";

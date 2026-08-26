@@ -1,11 +1,6 @@
 import { prisma } from "./prisma";
-import { getConfiguredClientIpPools } from "./env";
-import {
-  normalizeIpKey,
-  stripCidr,
-  toAllowedAddress,
-  type ClientIpPools,
-} from "./ip";
+import { getWireGuardSettings } from "./mikrotik-settings";
+import { getClientIpPools, normalizeIpKey, stripCidr, toAllowedAddress, type ClientIpPools } from "./ip";
 import { getMikrotikConnection } from "./mikrotik-settings";
 import { listWireguardPeers } from "./mikrotik";
 
@@ -75,14 +70,15 @@ function allocateFromPools(
   }
 
   if (parts.length === 0) {
-    throw new Error("WG_CLIENT_IP_POOL has no assignable addresses");
+    throw new Error("Client IP pool has no assignable addresses");
   }
 
   return parts.join(",");
 }
 
 export async function allocateClientIp(): Promise<string> {
-  const pools = getConfiguredClientIpPools();
+  const { clientIpPool } = await getWireGuardSettings();
+  const pools = getClientIpPools(clientIpPool);
   const used = await loadUsedIpKeys();
   return allocateFromPools(pools, used);
 }

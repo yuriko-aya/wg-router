@@ -1,5 +1,5 @@
 import { x25519 } from "@noble/curves/ed25519";
-import { getEnv } from "./env";
+import type { WireGuardServerSettings } from "./mikrotik-settings";
 import { formatAllowedAddresses, parseAddressList, stripCidr } from "./ip";
 
 export { getConfigFilename } from "./config-filename";
@@ -28,10 +28,12 @@ export interface ClientConfigInput {
   allowedAddress: string;
 }
 
-export function buildClientConfig(input: ClientConfigInput): string {
-  const env = getEnv();
+export function buildClientConfig(
+  input: ClientConfigInput,
+  server: WireGuardServerSettings,
+): string {
   const address = formatAllowedAddresses(parseAddressList(input.allowedAddress));
-  const dns = parseAddressList(env.WG_SERVER_ADDRESS)
+  const dns = parseAddressList(server.serverAddress)
     .map((part) => stripCidr(part))
     .join(", ");
 
@@ -42,8 +44,8 @@ export function buildClientConfig(input: ClientConfigInput): string {
     `DNS = ${dns}`,
     "",
     "[Peer]",
-    `PublicKey = ${env.WG_SERVER_PUBLIC_KEY}`,
-    `Endpoint = ${env.WG_SERVER_ENDPOINT}`,
+    `PublicKey = ${server.publicKey}`,
+    `Endpoint = ${server.endpoint}`,
     "AllowedIPs = 0.0.0.0/0, ::/0",
     "PersistentKeepalive = 25",
     "",
