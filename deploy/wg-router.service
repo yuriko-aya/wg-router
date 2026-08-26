@@ -1,3 +1,6 @@
+# Reference unit — install.sh writes /etc/systemd/system/wg-router.service
+# with APP_DIR and NODE_BIN substituted for your host.
+
 [Unit]
 Description=WG Router Web App
 After=network.target postgresql.service
@@ -9,6 +12,8 @@ User=wgrouter
 Group=wgrouter
 WorkingDirectory=/opt/wg-router
 EnvironmentFile=/opt/wg-router/.env
+Environment=HOSTNAME=127.0.0.1
+Environment=PORT=3000
 ExecStart=/usr/bin/node /opt/wg-router/server.js
 Restart=on-failure
 RestartSec=5

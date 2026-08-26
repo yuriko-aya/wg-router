@@ -109,11 +109,28 @@ Open `http://localhost:3000`.
 ```bash
 chmod +x deploy/install.sh
 ./deploy/install.sh
-
-sudo cp deploy/wg-router.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable --now wg-router
 ```
+
+`install.sh` builds the app, syncs it to `/opt/wg-router` (override with `APP_DIR=...`),
+creates the `wgrouter` system user, installs `/etc/systemd/system/wg-router.service`,
+and reloads systemd. On first install, enable the service:
+
+```bash
+sudo systemctl enable --now wg-router
+sudo systemctl status wg-router
+```
+
+Subsequent `./deploy/install.sh` runs restart the service if it is already enabled.
+
+Override paths if needed:
+
+```bash
+APP_DIR=/opt/wgrouter NODE_BIN=/usr/local/bin/node ./deploy/install.sh
+```
+
+The app binds to **127.0.0.1:3000** by default (`HOSTNAME` / `BIND_HOST` in `.env` or
+`install.sh`). nginx proxies public HTTPS to that address — do not expose port 3000 on
+`0.0.0.0` in production unless you have no reverse proxy.
 
 Put nginx/Caddy in front for HTTPS.
 
