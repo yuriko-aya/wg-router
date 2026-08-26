@@ -27,14 +27,24 @@ declare module "@auth/core/jwt" {
  * Edge-compatible Auth.js config (no Prisma).
  * Used by middleware only — do not add database adapters here.
  */
+function getGoogleProviders() {
+  const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
+  if (!clientId || !clientSecret) {
+    return [];
+  }
+
+  return [
+    Google({
+      clientId,
+      clientSecret,
+    }),
+  ];
+}
+
 export const authConfig = {
   trustHost: true,
-  providers: [
-    Google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
-  ],
+  providers: getGoogleProviders(),
   pages: {
     signIn: "/login",
   },
