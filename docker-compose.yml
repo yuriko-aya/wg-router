@@ -1,0 +1,55 @@
+x-app-build: &app-build
+  context: .
+  args:
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: wgrouter
+      POSTGRES_PASSWORD: wgrouter
+      POSTGRES_DB: wgrouter
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U wgrouter -d wgrouter"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  migrate:
+    build:
+      <<: *app-build
+      target: builder
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://wgrouter:wgrouter@postgres:5432/wgrouter
+    command: npx prisma migrate deploy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      <<: *app-build
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://wgrouter:wgrouter@postgres:5432/wgrouter
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Uncomment if the container must reach MikroTik on the host LAN:
+    # network_mode: host
+
+volumes:
+  postgres_data:

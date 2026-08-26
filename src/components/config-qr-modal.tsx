@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { getConfigFilename } from "@/lib/wireguard";
+import { getConfigFilename } from "@/lib/config-filename";
 
 interface ConfigQrModalProps {
   name: string;

@@ -137,12 +137,36 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ## Docker
 
+### Docker Compose (recommended)
+
 ```bash
-docker build -t wg-router .
-docker run --env-file .env -p 3000:3000 wg-router
+cp .env.example .env
+# Edit .env — DATABASE_URL is overridden by compose to use the postgres service
+
+docker compose up -d --build
 ```
 
-Ensure the container can reach your MikroTik router on the LAN (host networking or macvlan as needed). Configure MikroTik connection details in the admin UI.
+Open http://localhost:3000 (or `${APP_PORT}` if set).
+
+Migrations run automatically via the `migrate` service on startup.
+
+```bash
+docker compose logs -f app
+docker compose down          # stop
+docker compose down -v       # stop and delete database volume
+```
+
+If the app container cannot reach MikroTik on your LAN, uncomment `network_mode: host` on the `app` service in `docker-compose.yml` and remove the `ports` mapping.
+
+### Docker only
+
+```bash
+docker build -t wg-router \
+  --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY="$NEXT_PUBLIC_TURNSTILE_SITE_KEY" \
+  .
+docker run --env-file .env -p 3000:3000 wg-router
+docker exec wg-router npx prisma migrate deploy
+```
 
 ## Roles
 

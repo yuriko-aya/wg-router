@@ -2,6 +2,8 @@ import { x25519 } from "@noble/curves/ed25519";
 import { getEnv } from "./env";
 import { formatAllowedAddresses, parseAddressList, stripCidr } from "./ip";
 
+export { getConfigFilename } from "./config-filename";
+
 function bytesToBase64(bytes: Uint8Array): string {
   return Buffer.from(bytes).toString("base64");
 }
@@ -48,11 +50,3 @@ export function buildClientConfig(input: ClientConfigInput): string {
   ].join("\n");
 }
 
-export function getConfigFilename(name: string): string {
-  const safe = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-_]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return `${safe || "wg-config"}.conf`;
-}

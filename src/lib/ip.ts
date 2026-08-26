@@ -1,6 +1,37 @@
-import { isIPv4, isIPv6 } from "node:net";
-
 const MAX_IPV6_EXPAND = 1022;
+
+const IPV4_RE =
+  /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+
+function isIPv4(host: string): boolean {
+  return IPV4_RE.test(host);
+}
+
+function isIPv6(host: string): boolean {
+  const addr = (host.split("%")[0] ?? host).toLowerCase();
+  if (!addr.includes(":")) {
+    return false;
+  }
+
+  if (addr.includes("::")) {
+    const parts = addr.split("::");
+    if (parts.length > 2) {
+      return false;
+    }
+    const left = parts[0] ? parts[0].split(":") : [];
+    const right = parts[1] ? parts[1].split(":") : [];
+    if (left.length + right.length >= 8) {
+      return false;
+    }
+    return [...left, ...right].every((group) => /^[\da-f]{0,4}$/.test(group));
+  }
+
+  const groups = addr.split(":");
+  if (groups.length !== 8) {
+    return false;
+  }
+  return groups.every((group) => /^[\da-f]{1,4}$/.test(group));
+}
 
 export type IpVersion = "v4" | "v6";
 
