@@ -1,7 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import Google from "next-auth/providers/google";
 import { NextResponse } from "next/server";
-import { getAuthConfigUrl } from "./auth-url";
 import { isAdminRole, Role } from "./roles";
 
 declare module "next-auth" {
@@ -30,7 +29,6 @@ declare module "@auth/core/jwt" {
  */
 export const authConfig = {
   trustHost: true,
-  url: getAuthConfigUrl(),
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
