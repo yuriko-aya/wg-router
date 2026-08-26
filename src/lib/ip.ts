@@ -8,29 +8,16 @@ function isIPv4(host: string): boolean {
 }
 
 function isIPv6(host: string): boolean {
-  const addr = (host.split("%")[0] ?? host).toLowerCase();
-  if (!addr.includes(":")) {
+  if (!host.includes(":")) {
     return false;
   }
 
-  if (addr.includes("::")) {
-    const parts = addr.split("::");
-    if (parts.length > 2) {
-      return false;
-    }
-    const left = parts[0] ? parts[0].split(":") : [];
-    const right = parts[1] ? parts[1].split(":") : [];
-    if (left.length + right.length >= 8) {
-      return false;
-    }
-    return [...left, ...right].every((group) => /^[\da-f]{0,4}$/.test(group));
-  }
-
-  const groups = addr.split(":");
-  if (groups.length !== 8) {
+  try {
+    expandIpv6Address(host);
+    return true;
+  } catch {
     return false;
   }
-  return groups.every((group) => /^[\da-f]{1,4}$/.test(group));
 }
 
 export type IpVersion = "v4" | "v6";
@@ -41,12 +28,18 @@ export interface ClientIpPools {
 }
 
 export function stripCidr(address: string): string {
+  if (address.includes(",")) {
+    return parseAddressList(address).map(stripCidrSingle).join(",");
+  }
+  return stripCidrSingle(address);
+}
+
+function stripCidrSingle(address: string): string {
   const trimmed = address.trim();
   if (!trimmed) {
     return trimmed;
   }
 
-  // IPv6 with prefix: fd00::1/128 — only split on the last /
   const slashIndex = trimmed.lastIndexOf("/");
   if (slashIndex === -1) {
     return trimmed;
@@ -57,7 +50,7 @@ export function stripCidr(address: string): string {
     return host;
   }
 
-  return trimmed.split("/")[0] ?? trimmed;
+  return host;
 }
 
 export function detectIpVersion(address: string): IpVersion | null {
@@ -233,28 +226,55 @@ function ipv6Mask(prefix: number): bigint {
 }
 
 function expandIpv6Address(ip: string): string[] {
-  if (!ip.includes("::")) {
-    return ip.split(":").map((group) => group.padStart(4, "0"));
-  }
-
-  const [left, right] = ip.split("::");
-  const leftParts = left ? left.split(":").filter(Boolean) : [];
-  const rightParts = right ? right.split(":").filter(Boolean) : [];
-  const missing = 8 - leftParts.length - rightParts.length;
-
-  if (missing < 0) {
+  const addr = (ip.split("%")[0] ?? ip).trim().toLowerCase();
+  if (!addr.includes(":")) {
     throw new Error(`Invalid IPv6 address: ${ip}`);
   }
 
+  if (addr.includes("::")) {
+    const parts = addr.split("::");
+    if (parts.length > 2) {
+      throw new Error(`Invalid IPv6 address: ${ip}`);
+    }
+
+    const [left, right] = parts;
+    const leftParts = left ? left.split(":").filter(Boolean) : [];
+    const rightParts = right ? right.split(":").filter(Boolean) : [];
+    const missing = 8 - leftParts.length - rightParts.length;
+
+    if (missing < 0) {
+      throw new Error(`Invalid IPv6 address: ${ip}`);
+    }
+
+    return [
+      ...leftParts.map((group) => group.padStart(4, "0")),
+      ...Array.from({ length: missing }, () => "0000"),
+      ...rightParts.map((group) => group.padStart(4, "0")),
+    ];
+  }
+
+  const groups = addr.split(":").filter(Boolean);
+  if (groups.length === 0 || groups.length > 8) {
+    throw new Error(`Invalid IPv6 address: ${ip}`);
+  }
+
+  if (!groups.every((group) => /^[\da-f]{1,4}$/i.test(group))) {
+    throw new Error(`Invalid IPv6 address: ${ip}`);
+  }
+
+  if (groups.length === 8) {
+    return groups.map((group) => group.padStart(4, "0"));
+  }
+
+  // Abbreviated without :: (e.g. 2002:3c12:e002:3c18:2600) — pad trailing zero groups.
   return [
-    ...leftParts.map((group) => group.padStart(4, "0")),
-    ...Array.from({ length: missing }, () => "0000"),
-    ...rightParts.map((group) => group.padStart(4, "0")),
+    ...groups.map((group) => group.padStart(4, "0")),
+    ...Array.from({ length: 8 - groups.length }, () => "0000"),
   ];
 }
 
 function ipv6ToBigInt(ip: string): bigint {
-  const groups = expandIpv6Address(stripCidr(ip));
+  const groups = expandIpv6Address(stripCidrSingle(ip));
   let value = 0n;
   for (const group of groups) {
     value = (value << 16n) + BigInt(parseInt(group, 16));
