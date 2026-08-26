@@ -1,0 +1,17 @@
+[Unit]
+Description=WG Router Web App
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=wgrouter
+Group=wgrouter
+WorkingDirectory=/opt/wg-router
+EnvironmentFile=/opt/wg-router/.env
+ExecStart=/usr/bin/node /opt/wg-router/server.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
