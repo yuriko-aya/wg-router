@@ -285,7 +285,7 @@ function ipv6ToBigInt(ip: string): bigint {
 function bigintToIpv6(value: bigint): string {
   const groups: string[] = [];
   for (let i = 7; i >= 0; i--) {
-    groups.unshift(((value >> BigInt(i * 16)) & 0xffffn).toString(16));
+    groups.push(((value >> BigInt(i * 16)) & 0xffffn).toString(16));
   }
   return compressIpv6(groups.join(":"));
 }
