@@ -17,7 +17,7 @@ const envSchema = z
       emptyToUndefined,
       z.string().min(1).optional(),
     ),
-    DATABASE_URL: z.string().min(1),
+    DATABASE_URL: z.string().min(1).optional(),
     ENCRYPTION_KEY: z.string().min(16),
     ADMIN_EMAILS: z.string().default(""),
     MAX_CONFIGS_PER_USER: z.coerce.number().int().positive().default(3),

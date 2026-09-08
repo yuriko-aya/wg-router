@@ -3,15 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "prisma generate && next build",
+    "dev": "node scripts/prepare-prisma.mjs && prisma generate && next dev",
+    "build": "node scripts/prepare-prisma.mjs && prisma generate && next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate deploy",
-    "db:migrate:dev": "prisma migrate dev",
-    "db:push": "prisma db push",
-    "postinstall": "prisma generate"
+    "db:prepare": "node scripts/prepare-prisma.mjs",
+    "db:generate": "node scripts/prepare-prisma.mjs && prisma generate",
+    "db:migrate": "node scripts/prepare-prisma.mjs && prisma generate && node scripts/run-migrate.mjs",
+    "db:migrate:dev": "node scripts/prepare-prisma.mjs && prisma migrate dev",
+    "db:push": "node scripts/prepare-prisma.mjs && prisma db push",
+    "postinstall": "node scripts/prepare-prisma.mjs && prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.4",

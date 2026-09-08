@@ -42,10 +42,9 @@ export async function verifyTurnstileToken(
   return data.success === true;
 }
 
-export function getTurnstileSiteKey(): string {
-  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  if (!siteKey) {
-    throw new Error("NEXT_PUBLIC_TURNSTILE_SITE_KEY is not configured");
-  }
-  return siteKey;
+export function getTurnstileSiteKey(): string | null {
+  const siteKey =
+    process.env.TURNSTILE_SITE_KEY?.trim() ||
+    process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim();
+  return siteKey || null;
 }

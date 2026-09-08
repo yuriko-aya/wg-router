@@ -1,7 +1,5 @@
 x-app-build: &app-build
   context: .
-  args:
-    NEXT_PUBLIC_TURNSTILE_SITE_KEY: ${NEXT_PUBLIC_TURNSTILE_SITE_KEY:-}
 
 services:
   postgres:
@@ -27,7 +25,7 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql://wgrouter:wgrouter@postgres:5432/wgrouter
-    command: npx prisma migrate deploy
+    command: npm run db:migrate
     depends_on:
       postgres:
         condition: service_healthy

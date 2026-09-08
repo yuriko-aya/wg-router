@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { LoginForm } from "@/components/login-form";
 import { isGoogleAuthConfigured } from "@/lib/env";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 
 export default async function LoginPage() {
   const session = await auth();
@@ -11,6 +12,7 @@ export default async function LoginPage() {
   }
 
   const googleAuthEnabled = isGoogleAuthConfigured();
+  const turnstileSiteKey = getTurnstileSiteKey();
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
@@ -25,7 +27,7 @@ export default async function LoginPage() {
           </p>
         </div>
 
-        <LoginForm />
+        <LoginForm turnstileSiteKey={turnstileSiteKey} />
 
         {googleAuthEnabled && (
           <>

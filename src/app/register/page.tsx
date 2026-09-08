@@ -1,12 +1,15 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { RegisterForm } from "@/components/register-form";
+import { getTurnstileSiteKey } from "@/lib/turnstile";
 
 export default async function RegisterPage() {
   const session = await auth();
   if (session?.user) {
     redirect("/");
   }
+
+  const turnstileSiteKey = getTurnstileSiteKey();
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
@@ -19,7 +22,7 @@ export default async function RegisterPage() {
           </p>
         </div>
 
-        <RegisterForm />
+        <RegisterForm turnstileSiteKey={turnstileSiteKey} />
       </div>
     </main>
   );

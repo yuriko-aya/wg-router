@@ -17,21 +17,25 @@ echo "==> Installing dependencies"
 cd "$REPO_DIR"
 npm ci 2>/dev/null || npm install
 
+echo "==> Preparing database schema"
+node scripts/prepare-prisma.mjs
+
 echo "==> Generating Prisma client"
 npx prisma generate
 
 echo "==> Running database migrations"
-npx prisma migrate deploy
+node scripts/run-migrate.mjs
 
 echo "==> Building Next.js app"
 npm run build
 
 echo "==> Syncing standalone build to ${APP_DIR}"
-sudo mkdir -p "$APP_DIR/.next"
+sudo mkdir -p "$APP_DIR/.next" "$APP_DIR/data"
 sudo rsync -a --delete "$REPO_DIR/.next/standalone/" "$APP_DIR/"
 sudo rsync -a --delete "$REPO_DIR/.next/static/" "$APP_DIR/.next/static/"
 sudo rsync -a --delete "$REPO_DIR/public/" "$APP_DIR/public/"
 sudo rsync -a --delete "$REPO_DIR/prisma/" "$APP_DIR/prisma/"
+sudo rsync -a --delete "$REPO_DIR/scripts/" "$APP_DIR/scripts/"
 
 if [[ -f "$REPO_DIR/.env" ]]; then
   sudo install -m 600 "$REPO_DIR/.env" "$APP_DIR/.env"
@@ -47,8 +51,7 @@ echo "==> Installing systemd unit"
 sudo tee /etc/systemd/system/wg-router.service > /dev/null <<EOF
 [Unit]
 Description=WG Router Web App
-After=network.target postgresql.service
-Wants=postgresql.service
+After=network.target
 
 [Service]
 Type=simple

@@ -6,7 +6,7 @@ import { signIn } from "next-auth/react";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 
-export function LoginForm() {
+export function LoginForm({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
   const turnstileRef = useRef<TurnstileInstance>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -77,7 +77,11 @@ export function LoginForm() {
         />
       </label>
 
-      <TurnstileWidget ref={turnstileRef} onTokenChange={setTurnstileToken} />
+      <TurnstileWidget
+        ref={turnstileRef}
+        siteKey={turnstileSiteKey}
+        onTokenChange={setTurnstileToken}
+      />
 
       {error && (
         <p className="text-sm text-[var(--danger)]">{error}</p>

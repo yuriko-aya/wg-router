@@ -9,24 +9,34 @@ Web app for managing WireGuard peers on MikroTik RouterOS 7.x via REST API.
 - User dashboard: generate, download, QR code, delete configs (default limit: 3)
 - Admin panel: manage users and all configs
 - Configurable MikroTik host, WireGuard server public key, and client IP pool
-- Local PostgreSQL on Linux
+- SQLite by default, or PostgreSQL when `DATABASE_URL` is set
 
 ## Requirements
 
 - Linux host on the same network as MikroTik
 - Node.js 20+ (or Docker)
-- PostgreSQL 14+
 - MikroTik RouterOS 7.1+ with REST enabled
+- PostgreSQL 14+ (optional — SQLite is used when `DATABASE_URL` is unset)
 - Google OAuth client (Web application, optional if using email login only)
 - Cloudflare Turnstile site key + secret
 
 ## Quick start (Linux)
 
-### 1. PostgreSQL
+### 1. Database (optional)
+
+**SQLite (default)** — no setup. The app uses `./data/wg-router.db` when `DATABASE_URL` is not set.
+
+**PostgreSQL** (recommended for multi-user production):
 
 ```bash
 sudo -u postgres createuser wgrouter --pwprompt
 sudo -u postgres createdb wgrouter --owner=wgrouter
+```
+
+Set in `.env`:
+
+```env
+DATABASE_URL=postgresql://wgrouter:YOUR_PASSWORD@localhost:5432/wgrouter
 ```
 
 ### 2. MikroTik REST user
@@ -41,7 +51,7 @@ After starting the app, open **Admin → MikroTik connection** to enter the rout
 
 1. Open [Cloudflare Turnstile](https://dash.cloudflare.com/?to=/:account/turnstile)
 2. Create a widget for your domain
-3. Set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in `.env`
+3. Set `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY` in `.env` (runtime — no Docker rebuild needed)
 
 **Google OAuth** (optional):
 
@@ -68,7 +78,9 @@ Important variables:
 | `ADMIN_EMAILS` | Comma-separated emails with admin role |
 | `AUTH_SECRET` | Session signing secret |
 | `ENCRYPTION_KEY` | Encrypts stored WireGuard private keys |
-| `DATABASE_URL` | PostgreSQL connection string |
+| `DATABASE_URL` | Optional. `postgresql://…` or `file:./data/wg-router.db` (default) |
+| `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (read at runtime) |
+| `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret |
 
 WireGuard server settings (public key, endpoint, tunnel address, client IP pool) are configured in **Admin → MikroTik connection**. Optional `WG_*` env vars can bootstrap the first run on existing deployments.
 
@@ -98,7 +110,7 @@ openssl rand -hex 32      # ENCRYPTION_KEY
 
 ```bash
 npm ci
-npx prisma migrate deploy
+npm run db:migrate
 npm run dev
 ```
 
@@ -177,12 +189,30 @@ If the app container cannot reach MikroTik on your LAN, uncomment `network_mode:
 
 ### Docker only
 
+SQLite (default — good for containers / sidecar on CHR host):
+
 ```bash
-docker build -t wg-router \
-  --build-arg NEXT_PUBLIC_TURNSTILE_SITE_KEY="$NEXT_PUBLIC_TURNSTILE_SITE_KEY" \
-  .
-docker run --env-file .env -p 3000:3000 wg-router
-docker exec wg-router npx prisma migrate deploy
+docker build -t wg-router .
+docker run -d \
+  --name wg-router \
+  --env-file .env \
+  -v wg-router-data:/app/data \
+  -p 3000:3000 \
+  wg-router
+```
+
+The entrypoint runs `prisma generate` and applies the schema using `DATABASE_URL` from the container env. Turnstile keys are read at **runtime** — set `TURNSTILE_SITE_KEY` in `.env`, no build args.
+
+PostgreSQL (external or on host):
+
+```bash
+docker build -t wg-router .
+docker run -d \
+  --name wg-router \
+  --env-file .env \
+  -e DATABASE_URL=postgresql://user:pass@host:5432/wgrouter \
+  -p 3000:3000 \
+  wg-router
 ```
 
 ## Roles

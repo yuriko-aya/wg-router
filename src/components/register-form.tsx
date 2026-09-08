@@ -6,7 +6,7 @@ import { useRef, useState } from "react";
 import type { TurnstileInstance } from "@marsidev/react-turnstile";
 import { TurnstileWidget } from "@/components/turnstile-widget";
 
-export function RegisterForm() {
+export function RegisterForm({ turnstileSiteKey }: { turnstileSiteKey: string | null }) {
   const router = useRouter();
   const turnstileRef = useRef<TurnstileInstance>(null);
   const [name, setName] = useState("");
@@ -117,7 +117,11 @@ export function RegisterForm() {
         />
       </label>
 
-      <TurnstileWidget ref={turnstileRef} onTokenChange={setTurnstileToken} />
+      <TurnstileWidget
+        ref={turnstileRef}
+        siteKey={turnstileSiteKey}
+        onTokenChange={setTurnstileToken}
+      />
 
       {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
       {success && (
