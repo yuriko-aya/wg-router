@@ -203,7 +203,7 @@ docker run -d \
 
 Required in `.env` for Docker: `AUTH_SECRET`, `ENCRYPTION_KEY`, `ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `AUTH_URL`. Do **not** set `HOSTNAME=127.0.0.1` — the entrypoint binds `0.0.0.0` inside the container.
 
-The entrypoint runs `prisma generate` and applies the schema using `DATABASE_URL` from the container env (defaults to SQLite at `/app/data/wg-router.db`). Turnstile keys are read at **runtime** — no build args.
+The entrypoint initializes SQLite from a baked-in template (first start) and applies schema updates via an isolated Prisma tools install. PostgreSQL runs `migrate deploy` the same way. Turnstile keys are read at **runtime** — no build args.
 
 PostgreSQL (external or on host):
 
