@@ -24,8 +24,7 @@ function run(args) {
   }
 }
 
-ensureDatabaseUrlEnv();
-const databaseUrl = process.env.DATABASE_URL!;
+const databaseUrl = ensureDatabaseUrlEnv();
 
 if (isSqliteDatabaseUrl(databaseUrl)) {
   const dbPath = resolveSqliteFilePath(databaseUrl);
