@@ -1,15 +1,21 @@
-# syntax=docker/dockerfile:1
-
 FROM node:22-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+# postinstall needs scripts/ and prisma templates — not copied yet
+RUN npm ci --ignore-scripts || npm install --ignore-scripts
 
 FROM node:22-bookworm-slim AS builder
 WORKDIR /app
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends openssl ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV DATABASE_URL=file:./data/wg-router.db
+# Placeholders for Next.js build; override at runtime via --env-file
+ENV AUTH_SECRET=build-time-placeholder-not-used-at-runtime
+ENV ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 RUN npm run build
 
 FROM node:22-bookworm-slim AS runner
