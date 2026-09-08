@@ -349,6 +349,46 @@ function serverAddressFromEntry(entry: MikrotikIpAddress): string | null {
   return toAllowedAddress(host);
 }
 
+async function listInterfaceAddresses(
+  config: MikrotikConnection,
+  iface: string,
+): Promise<MikrotikIpAddress[]> {
+  const query = new URLSearchParams({ interface: iface });
+  const rows: MikrotikIpAddress[] = [];
+
+  const ipResponse = await mikrotikFetch(
+    config,
+    `/ip/address?${query.toString()}`,
+  );
+  if (!ipResponse.ok) {
+    const body = await ipResponse.text();
+    throw new MikrotikError(
+      `Failed to read interface addresses (${ipResponse.status})`,
+      ipResponse.status,
+      body,
+    );
+  }
+
+  rows.push(...((await ipResponse.json()) as MikrotikIpAddress[]));
+
+  const ipv6Response = await mikrotikFetch(
+    config,
+    `/ipv6/address?${query.toString()}`,
+  );
+  if (ipv6Response.ok) {
+    rows.push(...((await ipv6Response.json()) as MikrotikIpAddress[]));
+  } else if (ipv6Response.status !== 404 && ipv6Response.status !== 400) {
+    const body = await ipv6Response.text();
+    throw new MikrotikError(
+      `Failed to read IPv6 interface addresses (${ipv6Response.status})`,
+      ipv6Response.status,
+      body,
+    );
+  }
+
+  return rows;
+}
+
 export async function fetchWireGuardServerInfo(
   config: MikrotikConnection,
   endpointHost?: string,
@@ -380,22 +420,7 @@ export async function fetchWireGuardServerInfo(
     );
   }
 
-  const addrQuery = new URLSearchParams({ interface: config.wgInterface });
-  const addrResponse = await mikrotikFetch(
-    config,
-    `/ip/address?${addrQuery.toString()}`,
-  );
-
-  if (!addrResponse.ok) {
-    const body = await addrResponse.text();
-    throw new MikrotikError(
-      `Failed to read interface addresses (${addrResponse.status})`,
-      addrResponse.status,
-      body,
-    );
-  }
-
-  const addrRows = (await addrResponse.json()) as MikrotikIpAddress[];
+  const addrRows = await listInterfaceAddresses(config, config.wgInterface);
   const serverAddresses = addrRows
     .map(serverAddressFromEntry)
     .filter((value): value is string => Boolean(value));
@@ -405,7 +430,7 @@ export async function fetchWireGuardServerInfo(
 
   if (serverAddresses.length === 0) {
     throw new MikrotikError(
-      `No usable /ip/address entries found for interface "${config.wgInterface}" (link-local addresses are ignored)`,
+      `No usable addresses found for interface "${config.wgInterface}" on /ip/address or /ipv6/address (link-local addresses are ignored)`,
       404,
     );
   }

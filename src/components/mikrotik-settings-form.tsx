@@ -382,11 +382,11 @@ export function MikrotikSettingsForm({
               Public key and listen port come from{" "}
               <code className="text-xs">/interface/wireguard</code>. Server
               address and client pool come from{" "}
-              <code className="text-xs">/ip/address</code> on the WireGuard
-              interface (IPv4 and global IPv6; link-local{" "}
-              <code className="text-xs">fe80::/10</code> is skipped). Override
-              the endpoint hostname if clients reach the VPN on a public DNS
-              name.
+              <code className="text-xs">/ip/address</code> and{" "}
+              <code className="text-xs">/ipv6/address</code> on the WireGuard
+              interface (link-local <code className="text-xs">fe80::/10</code>{" "}
+              is skipped). Override the endpoint hostname if clients reach the
+              VPN on a public DNS name.
             </p>
 
             <div className="grid gap-4 md:grid-cols-2">
