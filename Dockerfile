@@ -44,6 +44,9 @@ COPY --from=builder /app/scripts ./scripts
 COPY --from=prisma-cli /cli/node_modules /tmp/prisma-node-modules
 RUN cp -r /tmp/prisma-node-modules/. ./node_modules/ \
   && rm -rf /tmp/prisma-node-modules
+# Standalone tracing strips generator-build; prisma-cli merge may clobber @prisma/client.
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh
