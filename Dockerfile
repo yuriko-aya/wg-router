@@ -18,6 +18,10 @@ ENV AUTH_SECRET=build-time-placeholder-not-used-at-runtime
 ENV ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 RUN npm run build
 
+FROM node:22-bookworm-slim AS prisma-cli
+WORKDIR /cli
+RUN npm install --ignore-scripts prisma@6.3.1
+
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
@@ -37,11 +41,9 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-# Copy full prisma package (incl. build/*.wasm). Do not copy .bin/prisma — that
-# dereferences the symlink and breaks WASM path resolution at runtime.
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+COPY --from=prisma-cli /cli/node_modules /tmp/prisma-node-modules
+RUN cp -r /tmp/prisma-node-modules/. ./node_modules/ \
+  && rm -rf /tmp/prisma-node-modules
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh

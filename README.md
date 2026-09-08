@@ -201,7 +201,9 @@ docker run -d \
   wg-router
 ```
 
-The entrypoint runs `prisma generate` and applies the schema using `DATABASE_URL` from the container env. Turnstile keys are read at **runtime** — set `TURNSTILE_SITE_KEY` in `.env`, no build args.
+Required in `.env` for Docker: `AUTH_SECRET`, `ENCRYPTION_KEY`, `ADMIN_EMAILS`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `AUTH_URL`. Do **not** set `HOSTNAME=127.0.0.1` — the entrypoint binds `0.0.0.0` inside the container.
+
+The entrypoint runs `prisma generate` and applies the schema using `DATABASE_URL` from the container env (defaults to SQLite at `/app/data/wg-router.db`). Turnstile keys are read at **runtime** — no build args.
 
 PostgreSQL (external or on host):
 
