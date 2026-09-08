@@ -17,10 +17,8 @@ ENV DATABASE_URL=file:./data/wg-router.db
 ENV AUTH_SECRET=build-time-placeholder-not-used-at-runtime
 ENV ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 RUN npm run build
-
-FROM node:22-bookworm-slim AS prisma-cli
-WORKDIR /cli
-RUN npm install --ignore-scripts prisma@6.3.1
+# Bundle Prisma CLI + hoisted deps from one npm install (avoid mixed versions).
+RUN node scripts/stage-prisma-runtime.mjs /prisma-runtime
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app
@@ -41,12 +39,7 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/scripts ./scripts
-COPY --from=prisma-cli /cli/node_modules /tmp/prisma-node-modules
-RUN cp -r /tmp/prisma-node-modules/. ./node_modules/ \
-  && rm -rf /tmp/prisma-node-modules
-# Standalone tracing strips generator-build; prisma-cli merge may clobber @prisma/client.
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /prisma-runtime/node_modules/ ./node_modules/
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh
