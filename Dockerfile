@@ -18,14 +18,14 @@ RUN apt-get update \
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL=file:./data/wg-router.db
+ENV DATABASE_URL=file:/app/data/wg-router.db
 # Placeholders for Next.js build; override at runtime via --env-file
 ENV AUTH_SECRET=build-time-placeholder-not-used-at-runtime
 ENV ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
 RUN npm run build
-RUN mkdir -p data && node scripts/run-migrate.mjs \
+RUN mkdir -p /app/data && node scripts/run-migrate.mjs \
   && mkdir -p /sqlite-template \
-  && cp data/wg-router.db /sqlite-template/wg-router.db
+  && cp /app/data/wg-router.db /sqlite-template/wg-router.db
 
 FROM node:22-bookworm-slim AS runner
 WORKDIR /app

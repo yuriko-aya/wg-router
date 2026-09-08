@@ -5,13 +5,13 @@ import {
   ensureDatabaseUrlEnv,
   isPostgresDatabaseUrl,
   isSqliteDatabaseUrl,
+  resolveSqliteFilePath,
 } from "./db-url.mjs";
 
 const databaseUrl = ensureDatabaseUrlEnv();
 
 if (isSqliteDatabaseUrl(databaseUrl)) {
-  const filePath = databaseUrl.replace(/^file:/, "");
-  const absolute = path.resolve(process.cwd(), filePath);
+  const absolute = resolveSqliteFilePath(databaseUrl);
   mkdirSync(path.dirname(absolute), { recursive: true });
   console.log(`Applying SQLite schema with prisma db push (${databaseUrl})`);
   execSync("node scripts/prisma-cli.mjs db push --skip-generate", {

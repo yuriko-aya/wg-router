@@ -1,7 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-export const DEFAULT_SQLITE_DATABASE_URL = "file:./data/wg-router.db";
+// Relative SQLite paths are resolved from prisma/schema.prisma (see resolveSqliteFilePath).
+export const DEFAULT_SQLITE_DATABASE_URL = "file:../data/wg-router.db";
 
 function loadEnvFile() {
   const envPath = path.resolve(process.cwd(), ".env");
@@ -55,4 +56,14 @@ export function ensureDatabaseUrlEnv() {
   const databaseUrl = resolveDatabaseUrl();
   process.env.DATABASE_URL = databaseUrl;
   return databaseUrl;
+}
+
+export function resolveSqliteFilePath(databaseUrl = resolveDatabaseUrl()) {
+  const raw = databaseUrl.replace(/^file:/, "");
+  if (path.isAbsolute(raw)) {
+    return raw;
+  }
+
+  // Prisma resolves relative SQLite paths from the schema directory.
+  return path.resolve(process.cwd(), "prisma", raw);
 }

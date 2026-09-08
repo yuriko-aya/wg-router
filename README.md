@@ -78,7 +78,7 @@ Important variables:
 | `ADMIN_EMAILS` | Comma-separated emails with admin role |
 | `AUTH_SECRET` | Session signing secret |
 | `ENCRYPTION_KEY` | Encrypts stored WireGuard private keys |
-| `DATABASE_URL` | Optional. `postgresql://…` or `file:./data/wg-router.db` (default) |
+| `DATABASE_URL` | Optional. `postgresql://…` or `file:../data/wg-router.db` (default) |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (read at runtime) |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret |
 

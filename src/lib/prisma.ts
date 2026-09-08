@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 function ensureDatabaseUrl(): string {
   if (!process.env.DATABASE_URL?.trim()) {
-    process.env.DATABASE_URL = "file:./data/wg-router.db";
+    process.env.DATABASE_URL = "file:../data/wg-router.db";
   }
   return process.env.DATABASE_URL;
 }

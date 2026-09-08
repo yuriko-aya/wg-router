@@ -5,6 +5,7 @@ import {
   ensureDatabaseUrlEnv,
   isPostgresDatabaseUrl,
   isSqliteDatabaseUrl,
+  resolveSqliteFilePath,
 } from "./db-url.mjs";
 
 const root = process.cwd();
@@ -23,16 +24,11 @@ function run(args) {
   }
 }
 
-function sqliteDbPath(databaseUrl) {
-  const filePath = databaseUrl.replace(/^file:/, "");
-  return path.resolve(root, filePath);
-}
-
 ensureDatabaseUrlEnv();
 const databaseUrl = process.env.DATABASE_URL!;
 
 if (isSqliteDatabaseUrl(databaseUrl)) {
-  const dbPath = sqliteDbPath(databaseUrl);
+  const dbPath = resolveSqliteFilePath(databaseUrl);
   mkdirSync(path.dirname(dbPath), { recursive: true });
 
   const template = path.join(root, "sqlite-template", "wg-router.db");
