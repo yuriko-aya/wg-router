@@ -14,10 +14,12 @@ if (isSqliteDatabaseUrl(databaseUrl)) {
   const absolute = path.resolve(process.cwd(), filePath);
   mkdirSync(path.dirname(absolute), { recursive: true });
   console.log(`Applying SQLite schema with prisma db push (${databaseUrl})`);
-  execSync("npx prisma db push --skip-generate", { stdio: "inherit" });
+  execSync("node scripts/prisma-cli.mjs db push --skip-generate", {
+    stdio: "inherit",
+  });
 } else if (isPostgresDatabaseUrl(databaseUrl)) {
   console.log(`Applying PostgreSQL migrations (${databaseUrl})`);
-  execSync("npx prisma migrate deploy", { stdio: "inherit" });
+  execSync("node scripts/prisma-cli.mjs migrate deploy", { stdio: "inherit" });
 } else {
   throw new Error(
     `Unsupported DATABASE_URL scheme: ${databaseUrl}. Use file:... or postgresql://...`,
