@@ -4,7 +4,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import { Role as PrismaRole } from "@prisma/client";
 import { z } from "zod";
 import { prisma } from "./prisma";
-import { getAdminEmails } from "./env";
+import { getAdminEmails, isEmailAuthEnabled } from "./env";
 import { authConfig } from "./auth.config";
 import { Role } from "./roles";
 import { verifyPassword } from "./password";
@@ -16,52 +16,58 @@ const credentialsSchema = z.object({
   turnstileToken: z.string().min(1),
 });
 
+const credentialsProvider = Credentials({
+  name: "Email and password",
+  credentials: {
+    email: { label: "Email", type: "email" },
+    password: { label: "Password", type: "password" },
+    turnstileToken: { label: "Turnstile", type: "text" },
+  },
+  async authorize(credentials) {
+    if (!isEmailAuthEnabled()) {
+      return null;
+    }
+
+    const parsed = credentialsSchema.safeParse(credentials);
+    if (!parsed.success) {
+      return null;
+    }
+
+    const turnstileOk = await verifyTurnstileToken(parsed.data.turnstileToken);
+    if (!turnstileOk) {
+      return null;
+    }
+
+    const email = parsed.data.email.toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (!user?.passwordHash || !user.isActive) {
+      return null;
+    }
+
+    const passwordOk = await verifyPassword(
+      parsed.data.password,
+      user.passwordHash,
+    );
+    if (!passwordOk) {
+      return null;
+    }
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      image: user.image,
+    };
+  },
+});
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
   adapter: PrismaAdapter(prisma),
   providers: [
     ...authConfig.providers,
-    Credentials({
-      name: "Email and password",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" },
-        turnstileToken: { label: "Turnstile", type: "text" },
-      },
-      async authorize(credentials) {
-        const parsed = credentialsSchema.safeParse(credentials);
-        if (!parsed.success) {
-          return null;
-        }
-
-        const turnstileOk = await verifyTurnstileToken(parsed.data.turnstileToken);
-        if (!turnstileOk) {
-          return null;
-        }
-
-        const email = parsed.data.email.toLowerCase();
-        const user = await prisma.user.findUnique({ where: { email } });
-
-        if (!user?.passwordHash || !user.isActive) {
-          return null;
-        }
-
-        const passwordOk = await verifyPassword(
-          parsed.data.password,
-          user.passwordHash,
-        );
-        if (!passwordOk) {
-          return null;
-        }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          image: user.image,
-        };
-      },
-    }),
+    ...(isEmailAuthEnabled() ? [credentialsProvider] : []),
   ],
   callbacks: {
     ...authConfig.callbacks,

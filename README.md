@@ -62,7 +62,9 @@ After starting the app, open **Admin → MikroTik connection** to enter the rout
    - Prod: `https://your-domain.example/api/auth/callback/google`
 4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
 
-Users can **register** at `/register` or **sign in** at `/login` with email/password (Turnstile required) or Google.
+**SSO only** (optional): set `AUTH_SSO_ONLY=true` to hide email/password login and disable `/register`. Google OAuth must be configured. New users can still sign in with Google on first visit (Auth.js creates the account).
+
+Users can **register** at `/register` or **sign in** at `/login` with email/password (Turnstile required) or Google when email auth is enabled.
 
 ### 4. Configure environment
 
@@ -81,6 +83,7 @@ Important variables:
 | `DATABASE_URL` | Optional. `postgresql://…` or `file:../data/wg-router.db` (default) |
 | `TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key (read at runtime) |
 | `TURNSTILE_SECRET_KEY` | Cloudflare Turnstile secret |
+| `AUTH_SSO_ONLY` | `true` to disable email login and registration (Google required) |
 
 WireGuard server settings (public key, endpoint, tunnel address, client IP pool) are configured in **Admin → MikroTik connection**. Optional `WG_*` env vars can bootstrap the first run on existing deployments.
 

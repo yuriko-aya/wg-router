@@ -8,10 +8,22 @@ function emptyToUndefined(value: unknown): string | undefined {
   return trimmed || undefined;
 }
 
+function envFlag(value: unknown): boolean {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value !== "string") {
+    return false;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === "true" || normalized === "1" || normalized === "yes";
+}
+
 const envSchema = z
   .object({
     AUTH_SECRET: z.string().min(1),
     AUTH_URL: z.string().url().optional(),
+    AUTH_SSO_ONLY: z.preprocess(envFlag, z.boolean().default(false)),
     GOOGLE_CLIENT_ID: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
     GOOGLE_CLIENT_SECRET: z.preprocess(
       emptyToUndefined,
@@ -29,6 +41,15 @@ const envSchema = z
       message:
         "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must both be set or both omitted",
       path: ["GOOGLE_CLIENT_ID"],
+    },
+  )
+  .refine(
+    (data) =>
+      !data.AUTH_SSO_ONLY ||
+      Boolean(data.GOOGLE_CLIENT_ID && data.GOOGLE_CLIENT_SECRET),
+    {
+      message: "AUTH_SSO_ONLY requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET",
+      path: ["AUTH_SSO_ONLY"],
     },
   );
 
@@ -63,6 +84,14 @@ export function getAdminEmails(): Set<string> {
 export function isGoogleAuthConfigured(): boolean {
   const env = getEnv();
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET);
+}
+
+export function isSsoOnlyAuth(): boolean {
+  return getEnv().AUTH_SSO_ONLY;
+}
+
+export function isEmailAuthEnabled(): boolean {
+  return !isSsoOnlyAuth();
 }
 
 export { getClientIpPool, getClientIpPools, stripCidr, toAllowedAddress } from "./ip";

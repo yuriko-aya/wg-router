@@ -4,7 +4,7 @@ import { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { hashPassword } from "@/lib/password";
 import { verifyTurnstileToken } from "@/lib/turnstile";
-import { getAdminEmails } from "@/lib/env";
+import { getAdminEmails, isEmailAuthEnabled } from "@/lib/env";
 import { jsonError } from "@/lib/api";
 
 const registerSchema = z.object({
@@ -15,6 +15,10 @@ const registerSchema = z.object({
 });
 
 export async function POST(request: Request) {
+  if (!isEmailAuthEnabled()) {
+    return jsonError("Registration is disabled", 403);
+  }
+
   let body: unknown;
   try {
     body = await request.json();
