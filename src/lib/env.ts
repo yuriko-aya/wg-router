@@ -32,6 +32,7 @@ const envSchema = z
     DATABASE_URL: z.string().min(1).optional(),
     ENCRYPTION_KEY: z.string().min(16),
     ADMIN_EMAILS: z.string().default(""),
+    SITE_TITLE: z.string().min(1).default("WG Router"),
     MAX_CONFIGS_PER_USER: z.coerce.number().int().positive().default(3),
   })
   .refine(
@@ -92,6 +93,10 @@ export function isSsoOnlyAuth(): boolean {
 
 export function isEmailAuthEnabled(): boolean {
   return !isSsoOnlyAuth();
+}
+
+export function getSiteTitle(): string {
+  return getEnv().SITE_TITLE;
 }
 
 export { getClientIpPool, getClientIpPools, stripCidr, toAllowedAddress } from "./ip";

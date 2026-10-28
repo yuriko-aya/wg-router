@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
+import { getSiteTitle } from "@/lib/env";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,10 +14,12 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "WG Router",
-  description: "WireGuard peer management for MikroTik",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: getSiteTitle(),
+    description: "WireGuard peer management for MikroTik",
+  };
+}
 
 export default function RootLayout({
   children,

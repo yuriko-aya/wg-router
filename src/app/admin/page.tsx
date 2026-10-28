@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { AppShell } from "@/components/app-shell";
 import { AdminClient } from "@/components/admin-client";
+import { getSiteTitle } from "@/lib/env";
 import { Role } from "@prisma/client";
 
 export default async function AdminPage() {
@@ -15,7 +16,11 @@ export default async function AdminPage() {
   }
 
   return (
-    <AppShell email={session.user.email} role={session.user.role}>
+    <AppShell
+      email={session.user.email}
+      role={session.user.role}
+      siteTitle={getSiteTitle()}
+    >
       <AdminClient />
     </AppShell>
   );

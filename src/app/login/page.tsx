@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { GoogleSignInButton } from "@/components/google-sign-in-button";
 import { LoginForm } from "@/components/login-form";
-import { isEmailAuthEnabled, isGoogleAuthConfigured } from "@/lib/env";
+import { getSiteTitle, isEmailAuthEnabled, isGoogleAuthConfigured } from "@/lib/env";
 import { getTurnstileSiteKey } from "@/lib/turnstile";
 
 export default async function LoginPage() {
@@ -14,12 +14,13 @@ export default async function LoginPage() {
   const emailAuthEnabled = isEmailAuthEnabled();
   const googleAuthEnabled = isGoogleAuthConfigured();
   const turnstileSiteKey = getTurnstileSiteKey();
+  const siteTitle = getSiteTitle();
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6">
       <div className="card w-full max-w-md p-8 space-y-6">
         <div className="space-y-2">
-          <p className="text-sm uppercase tracking-[0.2em] muted">WG Router</p>
+          <p className="text-sm uppercase tracking-[0.2em] muted">{siteTitle}</p>
           <h1 className="text-3xl font-semibold">Sign in</h1>
           <p className="muted">
             {emailAuthEnabled && googleAuthEnabled

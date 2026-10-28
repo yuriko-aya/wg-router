@@ -8,16 +8,17 @@ interface AppShellProps {
   children: React.ReactNode;
   email: string;
   role: Role;
+  siteTitle: string;
 }
 
-function Shell({ children, email, role }: AppShellProps) {
+function Shell({ children, email, role, siteTitle }: AppShellProps) {
   return (
     <div className="min-h-screen">
       <header className="border-b border-[var(--border)] bg-[rgba(8,12,28,0.75)] backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <Link href="/" className="text-lg font-semibold">
-              WG Router
+              {siteTitle}
             </Link>
             <nav className="flex items-center gap-3 text-sm muted">
               <Link href="/dashboard" className="hover:text-white">

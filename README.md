@@ -78,6 +78,7 @@ Important variables:
 | Variable | Description |
 |----------|-------------|
 | `ADMIN_EMAILS` | Comma-separated emails with admin role |
+| `SITE_TITLE` | Browser tab title and header branding (default: `WG Router`) |
 | `AUTH_SECRET` | Session signing secret |
 | `ENCRYPTION_KEY` | Encrypts stored WireGuard private keys |
 | `DATABASE_URL` | Optional. `postgresql://…` or `file:../data/wg-router.db` (default) |
