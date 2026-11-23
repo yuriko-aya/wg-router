@@ -2,6 +2,9 @@
   "name": "wg-router",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=24.0.0"
+  },
   "scripts": {
     "dev": "node scripts/prepare-prisma.mjs && prisma generate && next dev",
     "build": "node scripts/prepare-prisma.mjs && prisma generate && next build",
@@ -31,7 +34,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@tailwindcss/postcss": "^4.0.0",
-    "@types/node": "^22.10.7",
+    "@types/node": "^24.0.0",
     "@types/qrcode": "^1.5.5",
     "@types/bcryptjs": "^2.4.6",
     "@types/react": "^19.0.7",

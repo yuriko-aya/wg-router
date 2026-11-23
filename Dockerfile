@@ -1,16 +1,16 @@
-FROM node:22-bookworm-slim AS deps
+FROM node:24-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json* ./
 # postinstall needs scripts/ and prisma templates — not copied yet
 RUN npm ci --ignore-scripts || npm install --ignore-scripts
 
-FROM node:22-bookworm-slim AS prisma-tools
+FROM node:24-bookworm-slim AS prisma-tools
 WORKDIR /tools
 COPY package.json ./
 RUN npm init -y >/dev/null 2>&1 \
   && npm install --ignore-scripts "prisma@$(node -pe "require('./package.json').devDependencies.prisma")"
 
-FROM node:22-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 WORKDIR /app
 RUN apt-get update \
   && apt-get install -y --no-install-recommends openssl ca-certificates \
@@ -27,7 +27,7 @@ RUN mkdir -p /app/data && node scripts/run-migrate.mjs \
   && mkdir -p /sqlite-template \
   && cp /app/data/wg-router.db /sqlite-template/wg-router.db
 
-FROM node:22-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

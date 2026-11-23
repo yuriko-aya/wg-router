@@ -14,7 +14,7 @@ Web app for managing WireGuard peers on MikroTik RouterOS 7.x via REST API.
 ## Requirements
 
 - Linux host on the same network as MikroTik
-- Node.js 20+ (or Docker)
+- Node.js **24+** for bare-metal/systemd (or Docker — image uses `node:24-bookworm-slim`)
 - MikroTik RouterOS 7.1+ with REST enabled
 - PostgreSQL 14+ (optional — SQLite is used when `DATABASE_URL` is unset)
 - Google OAuth client (Web application, optional if using email login only)
@@ -220,6 +220,40 @@ docker run -d \
   -p 3000:3000 \
   wg-router
 ```
+
+### Updating the image (Node & OS patches)
+
+The app runtime is **Node inside** `node:24-bookworm-slim` (Debian bookworm + Node 24). Security fixes for Node and the base OS land in **new official images**, not in your running container — you pick them up by **rebuilding and redeploying**.
+
+1. **Pull the latest base** (so Docker does not use a stale cached `node:24-bookworm-slim`):
+   ```bash
+   docker pull node:24-bookworm-slim
+   ```
+
+2. **Rebuild and push** (example GHCR):
+   ```bash
+   docker build --pull -t ghcr.io/yuriko-aya/wg-router:latest .
+   docker push ghcr.io/yuriko-aya/wg-router:latest
+   ```
+   `--pull` always checks Docker Hub for an updated base image.
+
+3. **Redeploy** the container (same env/volume as before):
+   ```bash
+   docker pull ghcr.io/yuriko-aya/wg-router:latest
+   docker stop wg-router && docker rm wg-router
+   docker run -d --name wg-router --env-file .env -v wg-router-data:/app/data -p 3000:3000 \
+     ghcr.io/yuriko-aya/wg-router:latest
+   ```
+   For Compose: `docker compose up -d --build --pull always`.
+
+4. **Verify** Node in the running image:
+   ```bash
+   docker run --rm ghcr.io/yuriko-aya/wg-router:latest node -v
+   ```
+
+**Tag strategy:** `node:24-bookworm-slim` tracks the current Node 24.x on bookworm (good for routine patches). For stricter reproducibility, pin a digest (`node:24-bookworm-slim@sha256:…`) in the Dockerfile and bump it when you intentionally upgrade; for maximum freshness on patch day, use the floating tag + `--pull` on each build.
+
+**Bare metal:** upgrade the host Node to 24.x (`nvm install` / distro packages), then `git pull` and `./deploy/install.sh`.
 
 ## Roles
 
