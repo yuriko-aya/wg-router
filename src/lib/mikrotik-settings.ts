@@ -1,4 +1,4 @@
-import { getClientIpPools } from "./ip";
+import { getClientIpPools, normalizePeerAllowedIps } from "./ip";
 import { encryptPrivateKey, decryptPrivateKey } from "./crypto";
 import { prisma } from "./prisma";
 
@@ -9,6 +9,7 @@ export interface WireGuardServerSettings {
   endpoint: string;
   serverAddress: string;
   clientIpPool: string;
+  clientAllowedIps: string;
 }
 
 export interface MikrotikSettingsView {
@@ -22,6 +23,7 @@ export interface MikrotikSettingsView {
   wgServerEndpoint: string;
   wgServerAddress: string;
   wgClientIpPool: string;
+  wgClientAllowedIps: string;
   hasPassword: boolean;
   configured: boolean;
   wireGuardConfigured: boolean;
@@ -49,6 +51,7 @@ export interface SaveMikrotikSettingsInput {
   wgServerEndpoint?: string;
   wgServerAddress?: string;
   wgClientIpPool?: string;
+  wgClientAllowedIps?: string;
 }
 
 type MikrotikSettingsRecord = {
@@ -63,6 +66,7 @@ type MikrotikSettingsRecord = {
   wgServerEndpoint: string;
   wgServerAddress: string;
   wgClientIpPool: string;
+  wgClientAllowedIps: string;
 };
 
 function isConnectionConfigured(record: {
@@ -82,13 +86,11 @@ function isConnectionConfigured(record: {
 export function isWireGuardConfigured(record: {
   wgServerPublicKey: string;
   wgServerEndpoint: string;
-  wgServerAddress: string;
   wgClientIpPool: string;
 }): boolean {
   return Boolean(
     record.wgServerPublicKey.trim() &&
       record.wgServerEndpoint.trim() &&
-      record.wgServerAddress.trim() &&
       record.wgClientIpPool.trim(),
   );
 }
@@ -98,18 +100,22 @@ function validateWireGuardSettings(input: {
   wgServerEndpoint: string;
   wgServerAddress: string;
   wgClientIpPool: string;
+  wgClientAllowedIps: string;
 }) {
   const publicKey = input.wgServerPublicKey.trim();
   const endpoint = input.wgServerEndpoint.trim();
   const serverAddress = input.wgServerAddress.trim();
   const clientIpPool = input.wgClientIpPool.trim();
+  const clientAllowedIps = normalizePeerAllowedIps(input.wgClientAllowedIps);
 
-  const anySet = Boolean(publicKey || endpoint || serverAddress || clientIpPool);
-  const allSet = Boolean(publicKey && endpoint && serverAddress && clientIpPool);
+  const anySet = Boolean(
+    publicKey || endpoint || serverAddress || clientIpPool || input.wgClientAllowedIps.trim(),
+  );
+  const allSet = Boolean(publicKey && endpoint && clientIpPool);
 
   if (anySet && !allSet) {
     throw new Error(
-      "WireGuard server settings require public key, endpoint, server address, and client IP pool",
+      "WireGuard server settings require public key, endpoint, and client IP pool",
     );
   }
 
@@ -122,6 +128,7 @@ function validateWireGuardSettings(input: {
     wgServerEndpoint: endpoint,
     wgServerAddress: serverAddress,
     wgClientIpPool: clientIpPool,
+    wgClientAllowedIps: clientAllowedIps,
   };
 }
 
@@ -140,6 +147,7 @@ function toView(record: MikrotikSettingsRecord): MikrotikSettingsView {
     wgServerEndpoint: record.wgServerEndpoint,
     wgServerAddress: record.wgServerAddress,
     wgClientIpPool: record.wgClientIpPool,
+    wgClientAllowedIps: record.wgClientAllowedIps,
     hasPassword: Boolean(record.passwordEncrypted),
     configured: connectionConfigured && wireGuardConfigured,
     wireGuardConfigured,
@@ -189,14 +197,19 @@ async function bootstrapFromEnvIfEmpty() {
     const serverAddress = process.env.WG_SERVER_ADDRESS?.trim();
     const clientIpPool = process.env.WG_CLIENT_IP_POOL?.trim();
 
-    if (publicKey && endpoint && serverAddress && clientIpPool) {
+    const clientAllowedIps = process.env.WG_CLIENT_ALLOWED_IPS?.trim();
+
+    if (publicKey && endpoint && clientIpPool) {
       existing = await prisma.mikrotikSettings.update({
         where: { id: MIKROTIK_SETTINGS_ID },
         data: {
           wgServerPublicKey: publicKey,
           wgServerEndpoint: endpoint,
-          wgServerAddress: serverAddress,
+          wgServerAddress: serverAddress ?? "",
           wgClientIpPool: clientIpPool,
+          ...(clientAllowedIps
+            ? { wgClientAllowedIps: normalizePeerAllowedIps(clientAllowedIps) }
+            : {}),
         },
       });
     }
@@ -224,6 +237,7 @@ export async function getWireGuardSettings(): Promise<WireGuardServerSettings> {
     endpoint: record.wgServerEndpoint.trim(),
     serverAddress: record.wgServerAddress.trim(),
     clientIpPool: record.wgClientIpPool.trim(),
+    clientAllowedIps: normalizePeerAllowedIps(record.wgClientAllowedIps ?? ""),
   };
 }
 
@@ -257,6 +271,8 @@ export async function saveMikrotikSettings(
     wgServerEndpoint: input.wgServerEndpoint ?? existing?.wgServerEndpoint ?? "",
     wgServerAddress: input.wgServerAddress ?? existing?.wgServerAddress ?? "",
     wgClientIpPool: input.wgClientIpPool ?? existing?.wgClientIpPool ?? "",
+    wgClientAllowedIps:
+      input.wgClientAllowedIps ?? existing?.wgClientAllowedIps ?? "",
   });
 
   const record = await prisma.mikrotikSettings.upsert({

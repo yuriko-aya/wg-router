@@ -97,8 +97,11 @@ Example client IP pool (set in admin UI):
 # Dual-stack (each client gets one IPv4 + one IPv6)
 10.8.0.0/24,fd00:8::/64
 
-# Server address for client DNS (from /ip/address on the WG interface)
+# Server address for client DNS (optional — omit in admin UI to leave DNS out of .conf)
 10.8.0.1/32,fd00:8::1/128
+
+# Client [Peer] AllowedIPs in generated .conf (default full tunnel)
+0.0.0.0/0, ::/0
 ```
 
 MikroTik REST connection (host, credentials, WireGuard interface) is also on that admin page.
@@ -267,6 +270,8 @@ Each generated config includes:
 - Client private key (shown once at creation; stored encrypted in DB)
 - Assigned client address(es) from the configured client IP pool (IPv4 `/32`, IPv6 `/128`, or both)
 - Server public key and endpoint from MikroTik WireGuard settings in the admin UI
+- Optional `DNS = …` in `[Interface]` when **Server address (client DNS)** is set; omitted when that field is empty
+- `[Peer] AllowedIPs` from **Client AllowedIPs** in admin (default `0.0.0.0/0, ::/0`; use comma-separated CIDRs for split tunnel)
 
 ## Security notes
 

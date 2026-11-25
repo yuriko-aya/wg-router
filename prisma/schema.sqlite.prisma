@@ -96,5 +96,6 @@ model MikrotikSettings {
   wgServerEndpoint  String   @default("")
   wgServerAddress   String   @default("")
   wgClientIpPool    String   @default("")
+  wgClientAllowedIps String  @default("0.0.0.0/0, ::/0")
   updatedAt         DateTime @updatedAt
 }

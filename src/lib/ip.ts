@@ -101,6 +101,35 @@ export function parseAddressList(raw: string): string[] {
     .filter(Boolean);
 }
 
+const DEFAULT_PEER_ALLOWED_IPS = "0.0.0.0/0, ::/0";
+
+/** WireGuard [Peer] AllowedIPs — comma-separated CIDRs for client .conf files. */
+export function normalizePeerAllowedIps(raw: string): string {
+  const parts = parseAddressList(raw.trim() || DEFAULT_PEER_ALLOWED_IPS);
+  if (parts.length === 0) {
+    throw new Error("Client AllowedIPs must include at least one CIDR");
+  }
+
+  const normalized: string[] = [];
+  for (const part of parts) {
+    const slashIndex = part.lastIndexOf("/");
+    if (slashIndex === -1) {
+      throw new Error(`Invalid AllowedIPs entry (use CIDR): ${part}`);
+    }
+    const host = part.slice(0, slashIndex);
+    const prefix = part.slice(slashIndex + 1);
+    if (!/^\d+$/.test(prefix)) {
+      throw new Error(`Invalid AllowedIPs prefix: ${part}`);
+    }
+    if (detectIpVersion(host) === null) {
+      throw new Error(`Invalid AllowedIPs entry: ${part}`);
+    }
+    normalized.push(`${stripCidrSingle(host)}/${prefix}`);
+  }
+
+  return normalized.join(", ");
+}
+
 function splitCidr(cidr: string): [network: string, prefix: string] {
   const index = cidr.lastIndexOf("/");
   if (index === -1) {

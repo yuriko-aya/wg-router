@@ -1,6 +1,11 @@
 import { x25519 } from "@noble/curves/ed25519";
 import type { WireGuardServerSettings } from "./mikrotik-settings";
-import { formatAllowedAddresses, parseAddressList, stripCidr } from "./ip";
+import {
+  formatAllowedAddresses,
+  normalizePeerAllowedIps,
+  parseAddressList,
+  stripCidr,
+} from "./ip";
 
 export { getConfigFilename } from "./config-filename";
 
@@ -33,22 +38,29 @@ export function buildClientConfig(
   server: WireGuardServerSettings,
 ): string {
   const address = formatAllowedAddresses(parseAddressList(input.allowedAddress));
-  const dns = parseAddressList(server.serverAddress)
+  const dnsParts = parseAddressList(server.serverAddress)
     .map((part) => stripCidr(part))
-    .join(", ");
+    .filter(Boolean);
+  const peerAllowedIps = normalizePeerAllowedIps(server.clientAllowedIps);
 
-  return [
+  const lines = [
     "[Interface]",
     `PrivateKey = ${input.privateKey}`,
     `Address = ${address}`,
-    `DNS = ${dns}`,
+  ];
+  if (dnsParts.length > 0) {
+    lines.push(`DNS = ${dnsParts.join(", ")}`);
+  }
+  lines.push(
     "",
     "[Peer]",
     `PublicKey = ${server.publicKey}`,
     `Endpoint = ${server.endpoint}`,
-    "AllowedIPs = 0.0.0.0/0, ::/0",
+    `AllowedIPs = ${peerAllowedIps}`,
     "PersistentKeepalive = 25",
     "",
-  ].join("\n");
+  );
+
+  return lines.join("\n");
 }
 

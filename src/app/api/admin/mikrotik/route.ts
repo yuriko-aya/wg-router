@@ -34,6 +34,7 @@ export async function PUT(request: Request) {
     wgServerEndpoint?: string;
     wgServerAddress?: string;
     wgClientIpPool?: string;
+    wgClientAllowedIps?: string;
   };
 
   try {
@@ -55,6 +56,7 @@ export async function PUT(request: Request) {
       wgServerEndpoint: body.wgServerEndpoint,
       wgServerAddress: body.wgServerAddress,
       wgClientIpPool: body.wgClientIpPool,
+      wgClientAllowedIps: body.wgClientAllowedIps,
     });
     return NextResponse.json({ settings });
   } catch (error) {

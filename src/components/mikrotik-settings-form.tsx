@@ -13,6 +13,7 @@ interface MikrotikSettingsView {
   wgServerEndpoint: string;
   wgServerAddress: string;
   wgClientIpPool: string;
+  wgClientAllowedIps: string;
   hasPassword: boolean;
   configured: boolean;
   wireGuardConfigured: boolean;
@@ -45,6 +46,7 @@ const emptyForm = {
   wgServerEndpoint: "",
   wgServerAddress: "",
   wgClientIpPool: "",
+  wgClientAllowedIps: "0.0.0.0/0, ::/0",
   endpointHost: "",
 };
 
@@ -97,6 +99,8 @@ export function MikrotikSettingsForm({
         wgServerEndpoint: settings.wgServerEndpoint,
         wgServerAddress: settings.wgServerAddress,
         wgClientIpPool: settings.wgClientIpPool,
+        wgClientAllowedIps:
+          settings.wgClientAllowedIps?.trim() || "0.0.0.0/0, ::/0",
         endpointHost: settings.wgServerEndpoint.split(":")[0] ?? settings.host,
       });
       setHasPassword(settings.hasPassword);
@@ -141,6 +145,7 @@ export function MikrotikSettingsForm({
       wgServerEndpoint: form.wgServerEndpoint,
       wgServerAddress: form.wgServerAddress,
       wgClientIpPool: form.wgClientIpPool,
+      wgClientAllowedIps: form.wgClientAllowedIps,
     };
   }
 
@@ -427,14 +432,31 @@ export function MikrotikSettingsForm({
               </label>
 
               <label className="space-y-2 md:col-span-2">
-                <span className="text-sm muted">Server address (client DNS)</span>
+                <span className="text-sm muted">
+                  Server address (client DNS, optional)
+                </span>
                 <input
                   className="input font-mono text-sm"
                   value={form.wgServerAddress}
                   onChange={(e) =>
                     updateField("wgServerAddress", e.target.value)
                   }
-                  placeholder="10.8.0.1/32,fd00:8::1/128"
+                  placeholder="10.8.0.1/32, fd00:8::1/128 — leave empty to omit DNS"
+                  disabled={disabled || busy}
+                />
+              </label>
+
+              <label className="space-y-2 md:col-span-2">
+                <span className="text-sm muted">
+                  Client AllowedIPs (in generated .conf)
+                </span>
+                <input
+                  className="input font-mono text-sm"
+                  value={form.wgClientAllowedIps}
+                  onChange={(e) =>
+                    updateField("wgClientAllowedIps", e.target.value)
+                  }
+                  placeholder="0.0.0.0/0, ::/0"
                   disabled={disabled || busy}
                 />
               </label>
